@@ -1,0 +1,63 @@
+<project name="MyFirstSpecsProject" default="test" basedir=".">
+  <description>sample build file</description>
+  <!-- 1. Define common properties. Change the paths according to your installation -->
+  <property name="src.dir" value="src/scala/main" />
+  <property name="src.test.dir" value="src/scala/test" />
+  <property name="build.dir" value="target/classes" />
+  <property name="lib.dir" value="lib" />
+  <property name="repository.home" value="C:/Documents and Settings/debasishg/.m2/repository" />
+  
+  <property name="scala-compiler.jar"
+  value="C:/Program Files/scala-2.7.1.final/lib/scala-compiler.jar" />
+  <property name="scala-library.jar"
+  value="C:/Program Files/scala-2.7.1.final/lib/scala-library.jar" />
+  
+  <!-- 2. Define Scala CLASSPATH. -->
+  <path id="scala.classpath">
+    <pathelement location="${scala-compiler.jar}" />
+    <pathelement location="${scala-library.jar}" />
+  </path>
+  
+  <!-- 3. Define project CLASSPATH. -->
+  <path id="project.classpath">
+    <path refid="scala.classpath" />
+    <pathelement location="${build.dir}" />
+    <pathelement location="${repository.home}/junit/junit/4.4/junit-4.4.jar" />
+    <pathelement location="${repository.home}/org/specs/specs/1.3.1/specs-1.3.1.jar" />
+    <pathelement location="${repository.home}/org/scalacheck/scalacheck/1.3/scalacheck-1.3.jar" />
+  </path>
+  
+  <!-- 4. Define scala compiler command. -->
+  <taskdef resource="scala/tools/ant/antlib.xml">
+    <classpath refid="scala.classpath" />
+  </taskdef>
+  
+  <!-- 5. Compiles sources by using "scalac" command. -->
+  <target name="compile">
+    <mkdir dir="${build.dir}" />
+    <scalac srcdir="${src.dir}" destdir="${build.dir}" classpathref="project.classpath" force="changed">
+      <include name="**/*.scala" />
+    </scalac>
+  </target>
+  <target name="test-compile">
+    <mkdir dir="${build.dir}" />
+    <scalac srcdir="${src.test.dir}" destdir="${build.dir}" classpathref="project.classpath" force="changed">
+      <include name="**/*.scala" />
+    </scalac>
+  </target>
+
+  <!-- 6. Execute the specs as junit tests. -->
+  <target name="test" description="execute the tests">
+    <junit haltonfailure="true" showoutput="true">
+      <classpath refid="project.classpath" />
+      <formatter type="brief" usefile="false" />
+      <batchtest fork="yes">
+        <fileset dir="${build.dir}">
+          <include name="**/*Test.class" />
+          <exclude name="**/All*Test.class" />
+        </fileset>
+      </batchtest>
+    </junit>
+  </target>
+  <taskdef name="junit" classname="org.apache.tools.ant.taskdefs.optional.junit.JUnitTask" />
+</project>
