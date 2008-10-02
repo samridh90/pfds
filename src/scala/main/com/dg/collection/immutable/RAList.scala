@@ -1,5 +1,10 @@
 package com.dg.collection.immutable
 
+/**
+ * Implementation of a functional list data structure that offers O(log n) random access, in addition to
+ * O(1) list primitive operations (head, tail, cons). The implementation is based on Okasaki's paper 
+ * <a href="http://www.eecs.usma.edu/webs/people/okasaki/pubs.html#fpca95">Purely Functional Random-Access Lists</a>.
+ */
 object RAList {
   def empty[T]: RAList[T] = RAList.Nil
   
