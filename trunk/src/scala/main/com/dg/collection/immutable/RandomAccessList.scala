@@ -8,7 +8,7 @@ package com.dg.collection.immutable
 object RandomAccessList {
   
   def empty[T]: RandomAccessList[T] = RandomAccessList.Nil
-  
+
   private [immutable] case object Nil extends RandomAccessList[Nothing] {
     override def equals(that : Any) = this eq that.asInstanceOf[AnyRef] 
   }
@@ -28,11 +28,10 @@ sealed abstract class RandomAccessList[+T] {
    *  @return the first element of this list.
    *  @throws Predef.NoSuchElementException if the list is empty.
    */
-  def head: T = this match {
+  def head: T = (this: @unchecked) match {
     case Nil => throw new NoSuchElementException("head on empty list")
     case Root(_, Leaf(x), _) => x
     case Root(_, Node(x, l, r), _) => x
-    case _ => throw new IllegalStateException
   }
   
   /** 
@@ -41,13 +40,12 @@ sealed abstract class RandomAccessList[+T] {
    *  @return this list without its first element.
    *  @throws Predef.NoSuchElementException if the list is empty.
    */
-  def tail: RandomAccessList[T] = this match {
+  def tail: RandomAccessList[T] = (this: @unchecked) match {
     case Nil => throw new NoSuchElementException("tail on empty list")
     case Root(_, Leaf(x), rest) => rest
     case Root(size, Node(x, l, r), rest) =>
-      val s = size >> 2
+      val s = size / 2
       Root(s, l, Root(s, r, rest))
-    case _ => throw new IllegalStateException
   }
   
   /** 
@@ -79,7 +77,7 @@ sealed abstract class RandomAccessList[+T] {
    *  @return element at ith index
    *  @throws Predef.NoSuchElementException if the list is empty.
    */
-  def apply(i: Int): T = this match {
+  def apply(i: Int): T = (this: @unchecked) match {
     case Nil => throw new NoSuchElementException
     case Root(size, t, rest) =>
       if (i < size) {
@@ -87,7 +85,6 @@ sealed abstract class RandomAccessList[+T] {
       } else {
         rest.apply(i - size)
       }
-    case _ => throw new IllegalStateException
   }
   
   /** 
@@ -97,7 +94,7 @@ sealed abstract class RandomAccessList[+T] {
    *  @param value the new value
    *  @return a new list with the <code>i</code>th element updated to <code>value</code>
    */
-  def update[U >: T](i: Int, value: U): RandomAccessList[U] = this match {
+  def update[U >: T](i: Int, value: U): RandomAccessList[U] = (this: @unchecked) match {
     case Nil => throw new NoSuchElementException
     case Root(size, t, rest) =>
       if (i < size) {
@@ -105,7 +102,6 @@ sealed abstract class RandomAccessList[+T] {
       } else {
         Root(size, t, rest.update(i - size, value))
       }
-    case _ => throw new IllegalStateException
   }
   
   def length = {
