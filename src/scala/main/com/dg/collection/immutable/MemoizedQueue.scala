@@ -1,32 +1,36 @@
 package com.dg.collection.immutable
 
 /**
- * Implementation of a functional queue with O(1) worst case performance. The implementation
- * uses lazy list implementation of Scala (Stream) and incremental pre-evaluation of tail. 
- * In {@link LazyQueue}, evaluation of tails result in O(log n) worst case performance.
- * In the current implementation we use stronger memoization which guarantees every tail
- * of the form <code>rotate(xs.tail, ..</code> has been preevaluated and hence gives O(1)
- * performance.
+ * Implementation of a functional queue with O(1) worst case performance. 
+ * The implementation uses lazy list implementation of Scala (Stream) and 
+ * incremental pre-evaluation of tail. 
+ * <p/>
+ * In {@link LazyQueue}, evaluation of tails result in O(log n) worst case 
+ * performance. In the current implementation we use stronger memoization 
+ * which guarantees every tail of the form <code>rotate(xs.tail, ..</code> 
+ * has been preevaluated and hence gives O(1) performance.
  * <p/>
  * The implementation is based on Okasaki's paper 
  * <a href="http://www.eecs.usma.edu/webs/people/okasaki/pubs.html#jfp95">Simple and Efficient Purely Functional Queues and Deques</a>.
  */
 object MemoizedQueue {
   val Empty: MemoizedQueue[Nothing] = 
-    new MemoizedQueue(Stream.empty, Nil, Stream.empty)
+    new MemoizedQueue(Stream.empty, Nil, Nil)
 }
 
-class MemoizedQueue[+A] private (front: Stream[A], rear: List[A], pending: Stream[A]) {
+class MemoizedQueue[+A] private (front: Stream[A], rear: List[A], pending: List[A]) {
 
   def this() {
-    this(Stream.empty, Nil, Stream.empty)
+    this(Stream.empty, Nil, Nil)
   }
   
   /**
-   * A private function that does an <i>incremental</i> reversal of <code>rear</code> to prevent the long pauses caused
-   * in standard <code>Queue</code> implementation of Scala library. In the standard Scala implementation, when <code>front</code>
-   * becomes empty, <code>rear</code> needs to be reversed and then copied to <code>front</code>, leading to a potentially
-   * O(n) operation. Instead <code>rotate</code> incrementally replaces <front, rear> by <front ++ reverse(rear)>.
+   * A private function that does an <i>incremental</i> reversal of <code>rear</code> 
+   * to prevent the long pauses caused in standard <code>Queue</code> implementation 
+   * of Scala library. In the standard Scala implementation, when <code>front</code>
+   * becomes empty, <code>rear</code> needs to be reversed and then copied to <code>front</code>, 
+   * leading to a potentially O(n) operation. Instead <code>rotate</code> incrementally 
+   * replaces <front, rear> by <front ++ reverse(rear)>.
    * <p/>
    * Invariants:
    * <li><code>front.length >= rear.length</code></li>
@@ -39,14 +43,12 @@ class MemoizedQueue[+A] private (front: Stream[A], rear: List[A], pending: Strea
    * @param xs the front part of the queue
    * @param ys the rear part of the queue
    * @param rys the incremental reverse of ys
-   * 
-   * @return the cons'd Stream after rotation
    */
-  private [this] def rotate[A](xs: Stream[A], ys: List[A], rys: Stream[A]): Stream[A] = ys match {
+  private [this] def rotate[A](xs: Stream[A], ys: List[A], rys: List[A]): Stream[A] = ys match {
     case y :: ys1 =>
-      if (xs isEmpty) Stream.cons(y, rys)
+      if (xs isEmpty) (y :: rys).toStream  
       else
-        Stream.cons(xs.head, rotate(xs.tail, ys.tail, Stream.cons(y, rys)))
+        Stream.cons(xs.head, rotate(xs.tail, ys1, y :: rys))
     case Nil =>
       throw new NullPointerException("ys is null")
   }
@@ -61,10 +63,10 @@ class MemoizedQueue[+A] private (front: Stream[A], rear: List[A], pending: Strea
    * 
    * @return an instance of <code>MemoizedQueue</code>
    */
-  protected [immutable] def makeQ[A](f: Stream[A], r: List[A], p: Stream[A]): MemoizedQueue[A] = {
+  protected [immutable] def makeQ[A](f: Stream[A], r: List[A], p: List[A]): MemoizedQueue[A] = {
     if (p isEmpty) {
-      val fr = rotate(f, r, Stream.empty)
-      new MemoizedQueue[A](fr, Nil, fr)
+      val fr = rotate(f, r, Nil)
+      new MemoizedQueue[A](fr, Nil, fr.force)
     } else {
       new MemoizedQueue[A](f, r, p.tail)
     }
@@ -72,20 +74,65 @@ class MemoizedQueue[+A] private (front: Stream[A], rear: List[A], pending: Strea
   
   def isEmpty: Boolean = front isEmpty
   
+  /** 
+   *  Creates a new queue with element added at the end 
+   *  of the old queue.
+   *
+   *  @param elem the element to insert
+   */
   def enqueue[B >: A](elem: B) = {
     makeQ(front, elem :: rear, pending)
   }
   
+  /** 
+   *  Returns a new queue with all all elements provided by 
+   *  an <code>Iterable</code> object added at the end of 
+   *  the queue. 
+   *  The elements are prepended in the order they
+   *  are given out by the iterator.
+   *
+   *  @param iter an iterable object
+   */
   def enqueue[B >: A](elems: Iterable[B]): MemoizedQueue[B] = {
-    (elems :\ (this: MemoizedQueue[B]))((x, y) => y.enqueue(x)) 
+    var q: MemoizedQueue[B] = MemoizedQueue.Empty
+    elems.foreach(x => q = q.enqueue[B](x)) 
+    q
   }
   
+  /** 
+   *  Returns a new queue with all elements added.
+   *
+   *  @param elems the elements to add.
+   */
+  def enqueue[B >: A](elems: B*): MemoizedQueue[B] = {
+    var q: MemoizedQueue[B] = MemoizedQueue.Empty
+    elems.foreach(x => q = q.enqueue[B](x)) 
+    q
+  }
+  
+  /** 
+   *  Creates a new queue with element added at the front 
+   *  of the old queue.
+   *
+   *  @param elem the element to insert
+   */
+  def enqueuef[B >: A](elem: B) = {
+    makeQ(Stream.cons(elem, front), rear, elem :: pending)
+  }
+  
+  /** 
+   *  Returns a tuple with the first element in the queue,
+   *  and a new queue with this element removed.
+   *
+   *  @throws Predef.NoSuchElementException
+   *  @return the first element of the queue and a new queue.
+   */
   def dequeue: (A, MemoizedQueue[A]) = {
-    if (front isEmpty) throw new Exception("empty queue")
+    if (front isEmpty) throw new NoSuchElementException("queue empty")
     (front.head, makeQ(front.tail, rear, pending))
   }
   
   def elements: Iterator[A] = (front.force ::: rear.reverse).elements
   
-  def length = (pending.length + 2 * rear.length)
+  def length = (front.length + rear.length)
 }
