@@ -1,0 +1,1 @@
+Some often used functional data structures in Scala. They are not available in Scala standard library at present. Most of them are implementations of Okasaki's Purely Functional Data Structures.
